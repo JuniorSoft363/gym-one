@@ -20,8 +20,16 @@ docker compose up -d         # --build la primera vez
 - Staff: `admin`/`admin123` (jefe) · `staff`/`staff123` (sin permisos)
 - Socios: `ana@test.com` · `marco@test.com` · `lucia@test.com` (sin confirmar), todos `test1234`
 
-**Detalle completo del entorno en `docker/README.md`.** Léelo antes de tocar
-`docker/`, el esquema o el `.env`.
+**Detalle completo del entorno en `docker/README.md`.** Lee ese fichero antes
+de tocar `docker/`, el esquema o el `.env`.
+
+Flujo verificado en frio: se clono el repo en una carpeta limpia, se levanto
+con esos dos comandos y funciono (BD sembrada sola, ambos logins, check-in
+asignando taquilla, 33 paginas del panel sin errores).
+
+`HANDOFF.md` es la version autocontenida de este documento, para pegar en un
+asistente que NO puede leer el repositorio (ChatGPT, DeepSeek...). Si cambias
+algo estructural, actualiza los dos.
 
 ## Patrón que se repite en todo el código
 

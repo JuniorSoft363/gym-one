@@ -8,6 +8,11 @@ if (!isset($_SESSION['adminuser'])) {
 
 $userid = $_SESSION['adminuser'];
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../../_csrf.php';
+gymone_csrf_protect();
+
 /** .env beolvasása (\r\n + kommentek). */
 function read_env_file($file_path)
 {
@@ -504,6 +509,8 @@ $conn->close();
             'use strict';
             const T = <?php echo json_encode($translations); ?>;
             const SELF = window.location.pathname; // ugyanerre az oldalra POST-olunk
+            // Token CSRF para los POST de este script (index.php lo valida).
+            const CSRF = <?php echo json_encode(gymone_csrf_token()); ?>;
             // Profilképek: assets/img/profiles/<userid>.png — a sell oldalról ../../../assets/...
             const PROFILE_BASE = '../../../assets/img/profiles/';
 
@@ -626,7 +633,7 @@ $conn->close();
                     searchAbort = new AbortController();
                     fetch(SELF, {
                         method:'POST',
-                        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+                        headers:{ 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-Token': CSRF },
                         body: new URLSearchParams({ q }).toString(),
                         signal: searchAbort.signal
                     })
@@ -644,7 +651,7 @@ $conn->close();
                 try {
                     const r = await fetch(SELF, {
                         method:'POST',
-                        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+                        headers:{ 'Content-Type':'application/x-www-form-urlencoded', 'X-CSRF-Token': CSRF },
                         body: new URLSearchParams({ lookup: text }).toString()
                     });
                     const d = await r.json();

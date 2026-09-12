@@ -1,6 +1,11 @@
 <?php
 session_start();
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../../../_csrf.php';
+gymone_csrf_protect();
+
 if (!isset($_SESSION['adminuser'])) {
     header("Location: ../");
     exit();

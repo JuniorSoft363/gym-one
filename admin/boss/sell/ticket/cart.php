@@ -1,6 +1,11 @@
 <?php
 session_start();
 
+// Vender es tarea de recepcion, no solo del jefe (asi lo enlaza el menu), por
+// eso aqui basta con exigir sesion de empleado.
+require_once __DIR__ . '/../../../_guard.php';
+gymone_require_admin();
+
 function read_env_file($file_path)
 {
     $env_file = file_get_contents($file_path);

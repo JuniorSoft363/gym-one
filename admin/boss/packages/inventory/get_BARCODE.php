@@ -1,4 +1,10 @@
 <?php
+// Endpoint AJAX del inventario: traduce un codigo de barras a id de producto.
+// Pertenece a /boss/, asi que exige sesion Y rol de jefe, igual que la pagina
+// que lo consume. Antes respondia a cualquiera sin autenticar.
+require_once __DIR__ . '/../../../_guard.php';
+$adminuser = gymone_require_admin_json();
+
 function read_env_file($file_path)
 {
     $env_file = file_get_contents($file_path);
@@ -47,17 +53,23 @@ if ($conn->connect_error) {
     die("CONN ERROR: " . $conn->connect_error);
 }
 
-if (isset($_GET['barcode'])) {
-    $barcode = $conn->real_escape_string($_GET['barcode']);
-    $sql = "SELECT id FROM products WHERE barcode = '$barcode'";
-    $result = $conn->query($sql);
+// El inventario es area de jefe; la comprobacion va aqui porque necesita $conn.
+if (gymone_worker_is_boss($conn, $adminuser) !== 1) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['success' => false, 'error' => 'Forbidden']);
+    exit;
+}
 
-    if ($result && $result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        echo json_encode(['id' => $row['id']]);
-    } else {
-        echo json_encode(['id' => null]);
-    }
+if (isset($_GET['barcode'])) {
+    // Sentencia preparada en lugar de interpolar con real_escape_string.
+    $stmt = $conn->prepare("SELECT id FROM products WHERE barcode = ?");
+    $stmt->bind_param("s", $_GET['barcode']);
+    $stmt->execute();
+    $stmt->bind_result($product_id);
+
+    echo json_encode(['id' => $stmt->fetch() ? $product_id : null]);
+    $stmt->close();
 }
 
 $conn->close();

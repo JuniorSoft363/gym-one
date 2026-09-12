@@ -1,4 +1,10 @@
 <?php
+// Da de baja a un socio: registra los minutos de entrenamiento, lo borra de
+// temp_loggeduser y libera su taquilla. Sin guarda, cualquiera podia sacar del
+// gimnasio a un socio arbitrario con una simple peticion GET.
+require_once __DIR__ . '/../_guard.php';
+gymone_require_admin();
+
 function read_env_file($file_path)
 {
     $env_file = file_get_contents($file_path);

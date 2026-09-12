@@ -8,6 +8,11 @@ if (!isset($_SESSION['adminuser'])) {
 
 $userid = $_SESSION['adminuser'];
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../_csrf.php';
+gymone_csrf_protect();
+
 function read_env_file($file_path)
 {
     $env_file = file_get_contents($file_path);
@@ -55,19 +60,10 @@ if ($conn->connect_error) {
     die("Kapcsolódási hiba: " . $conn->connect_error);
 }
 
-$sql = "SELECT is_boss FROM workers WHERE userid = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $userid);
-$stmt->execute();
-$stmt->store_result();
-
-$is_boss = null;
-
-if ($stmt->num_rows > 0) {
-    $stmt->bind_result($is_boss);
-    $stmt->fetch();
-}
-$stmt->close();
+// Area exclusiva del jefe. Antes esto solo cargaba $is_boss para decidir que
+// pintar en el menu; la pagina en si quedaba accesible escribiendo la URL a mano.
+require_once __DIR__ . '/../_guard.php';
+$is_boss = gymone_require_boss($conn, $userid);
 
 // API!
 $file_path = 'https://api.gymoneglobal.com/latest/version.txt';
@@ -918,7 +914,9 @@ if (!function_exists('curl_init')) {
                     url: window.location.href,
                     type: "POST",
                     data: {
-                        action: "run_update"
+                        action: "run_update",
+                        // El POST de arranque de la actualizacion tambien lleva token.
+                        _csrf: <?php echo json_encode(gymone_csrf_token()); ?>
                     },
                     dataType: "json",
                     success: function(response) {

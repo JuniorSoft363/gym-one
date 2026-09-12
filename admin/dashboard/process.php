@@ -31,6 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// Proteccion CSRF. Importa especialmente en 'commit', que asigna taquilla y
+// descuenta una sesion del abono: sin token, una pagina externa podia gastar
+// entradas de socios usando la sesion abierta del recepcionista.
+// checkin.js envia el token en la cabecera X-CSRF-Token.
+require_once __DIR__ . '/../../_csrf.php';
+gymone_csrf_protect_json();
+
 /**
  * .env beolvasása (\r\n és kommentek kezelése).
  */

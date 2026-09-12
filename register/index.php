@@ -205,6 +205,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $confirmed = 'NO';
     }
 
+    // Token de un solo uso para el enlace de confirmacion. Antes el enlace era
+    // solo "?userid=<numero>", asi que cualquiera podia activar la cuenta de otra
+    // persona (o activarlas en masa) probando ids. Con AUTOACCEPT no hace falta
+    // porque la cuenta ya nace confirmada.
+    $confirm_token = ($confirmed === 'YES') ? null : bin2hex(random_bytes(32));
 
     $registration_date = date('Y-m-d H:i:s');
 
@@ -214,13 +219,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       die("Kapcsolódási hiba: " . $conn->connect_error);
     }
 
-    $stmt = $conn->prepare("INSERT INTO users (userid, firstname, lastname, email, password, gender, birthdate, city, street, house_number, registration_date, confirmed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (userid, firstname, lastname, email, password, gender, birthdate, city, street, house_number, registration_date, confirmed, confirm_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     if ($stmt === false) {
       die("Hiba az előkészített állítás létrehozása során: " . $conn->error);
     }
 
-    $stmt->bind_param("isssssssssss", $userid, $firstname, $lastname, $email, $hashed_password, $gender, $birthdate, $city, $street, $house_number, $registration_date, $confirmed);
+    $stmt->bind_param("issssssssssss", $userid, $firstname, $lastname, $email, $hashed_password, $gender, $birthdate, $city, $street, $house_number, $registration_date, $confirmed, $confirm_token);
 
     $ConfirmEmailPage_PLACEHOLDER = str_replace("{business_name}", $business_name, $translations["confirmemailpage"]);
     $replacements = [
@@ -275,7 +280,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
               <td style="padding:0 30px 30px; text-align:center;">
                 <h1 style="color:#333333; font-size:28px; font-weight:700; margin-bottom:16px;">{$ConfirmEmailHeader_PLACEHOLDER}</h1>
                 <p style="color:#6B7280; font-size:16px; margin-bottom:32px;">{$translations["confirmemailheadertext"]}</p>
-                <a href="{$domain_url}/register/confirm.php?userid={$userid}" class="cta-button">{$translations["regconfirmbtn"]}</a>
+                <a href="{$domain_url}/register/confirm.php?userid={$userid}&token={$confirm_token}" class="cta-button">{$translations["regconfirmbtn"]}</a>
                 <div style="margin:20px 0;">
                   <a href="{$domain_url}" style="color:#0950DC; font-size:14px;">{$translations["confirmemailorlogin"]} →</a>
                 </div>

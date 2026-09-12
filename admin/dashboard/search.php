@@ -1,4 +1,14 @@
 <?php
+// Este endpoint devuelve nombre, apellidos y email de los miembros. Sin esta
+// guarda cualquiera podia listar la base de datos de socios con un solo POST.
+require_once __DIR__ . '/../_guard.php';
+gymone_require_admin();
+
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../_csrf.php';
+gymone_csrf_protect_json();
+
 function read_env_file($file_path)
 {
     if (!file_exists($file_path)) return [];

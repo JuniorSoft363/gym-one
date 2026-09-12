@@ -8,6 +8,11 @@ if (!isset($_SESSION['adminuser'])) {
 
 $userid = $_SESSION['adminuser'];
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../_csrf.php';
+gymone_csrf_protect();
+
 /**
  * .env beolvasása (\r\n és kommentek kezelése).
  */
@@ -868,6 +873,9 @@ if ($countryCode !== '') {
 
     <!-- Beléptető (check-in) logika -->
     <script>window.translations = <?php echo json_encode($translations); ?>;</script>
+    <!-- checkin.js lo manda como cabecera X-CSRF-Token en sus llamadas a
+         process.php y search.php, que exigen token. -->
+    <script>window.csrfToken = <?php echo json_encode(gymone_csrf_token()); ?>;</script>
     <script src="checkin.js"></script>
 
     <!-- Regisztrációs grafikon -->

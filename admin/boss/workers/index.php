@@ -8,6 +8,11 @@ if (!isset($_SESSION['adminuser'])) {
 
 $userid = $_SESSION['adminuser'];
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../../_csrf.php';
+gymone_csrf_protect();
+
 function read_env_file($file_path)
 {
     $env_file = file_get_contents($file_path);
@@ -55,19 +60,12 @@ if ($conn->connect_error) {
     die("Kapcsolódási hiba: " . $conn->connect_error);
 }
 
-$sql = "SELECT is_boss FROM workers WHERE userid = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $userid);
-$stmt->execute();
-$stmt->store_result();
-
-$is_boss = null;
-
-if ($stmt->num_rows > 0) {
-    $stmt->bind_result($is_boss);
-    $stmt->fetch();
-}
-$stmt->close();
+// Gestionar empleados es exclusivo del jefe. La comprobacion tiene que estar
+// AQUI, en el servidor y antes de procesar el POST de mas abajo: hasta ahora solo
+// se ocultaba el formulario en el HTML, asi que cualquier empleado podia enviar
+// el POST a mano y crearse una cuenta con is_boss = 1.
+require_once __DIR__ . '/../../_guard.php';
+$is_boss = gymone_require_boss($conn, $userid);
 
 $alerts_html = '';
 
@@ -80,14 +78,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["add_user"])) {
     $username = $_POST["username"];
     $password = $_POST["password"];
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-    $is_this_boss = isset($_POST["is_boss"]) ? 1 : 0;
+    // Comparamos el VALOR, no solo la presencia: isset() daba is_boss = 1 ante
+    // cualquier envio que incluyera el campo, incluido "is_boss=0". Con el
+    // checkbox del formulario (value="1") el comportamiento es el mismo, pero
+    // deja de convertir en jefe a cualquier peticion construida a mano.
+    $is_this_boss = (($_POST["is_boss"] ?? '') === '1') ? 1 : 0;
 
     $newuserid = mt_rand(1000000000, 9999999994);
 
+    // Sentencia preparada: antes los campos del formulario se interpolaban tal
+    // cual entre comillas simples, asi que un apostrofo en el nombre rompia la
+    // consulta y un valor manipulado permitia inyectar SQL arbitrario.
     $sql = "INSERT INTO workers (userid, Firstname, Lastname, username, password_hash, is_boss)
-            VALUES ($newuserid, '$firstname', '$lastname', '$username', '$hashed_password', $is_this_boss)";
+            VALUES (?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("issssi", $newuserid, $firstname, $lastname, $username, $hashed_password, $is_this_boss);
+    $inserted = $stmt->execute();
+    $stmt->close();
 
-    if ($conn->query($sql) === TRUE) {
+    if ($inserted) {
         $alerts_html .= "<div class='alert alert-success'>{$translations["success-add"]}</div>";
 
         $role_text = $is_this_boss == 1 ? $translations["boss"] : $translations["worker"];

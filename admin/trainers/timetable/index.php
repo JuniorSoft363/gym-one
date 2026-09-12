@@ -8,6 +8,11 @@ if (!isset($_SESSION['adminuser'])) {
 
 $userid = $_SESSION['adminuser'];
 
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../../_csrf.php';
+gymone_csrf_protect();
+
 $alerts_html = "";
 
 function read_env_file($file_path)
@@ -87,6 +92,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         $env_content = '';
         foreach ($env_data as $key => $value) {
+            // El read_env_file() antiguo no salta los comentarios, asi que una
+            // linea "# ... = ..." del .env entra aqui como si fuera una clave.
+            // Si la reescribieramos, el fichero se iria llenando de basura en
+            // cada guardado y acabaria rompiendo la configuracion.
+            if (strncmp((string) $key, '#', 1) === 0) {
+                continue;
+            }
             $env_content .= "$key=$value\n";
         }
 

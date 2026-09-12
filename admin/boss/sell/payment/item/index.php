@@ -7,6 +7,11 @@ if (!isset($_SESSION['adminuser'])) {
 }
 
 $userid = $_SESSION['adminuser'];
+
+// Proteccion CSRF: valida el token en los POST y, en las respuestas HTML,
+// inyecta el campo oculto en cada formulario POST de la pagina.
+require_once __DIR__ . '/../../../../../_csrf.php';
+gymone_csrf_protect();
 $logid = $_SESSION['adminuser'];
 
 function read_env_file($file_path)

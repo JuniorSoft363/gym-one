@@ -80,7 +80,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $update_stmt->bind_param("ssi", $current_datetime, $user_ip, $userid);
                 $update_stmt->execute();
                 $update_stmt->close();
-                session_start();
+                // La sesion ya se abrio en la linea 2. Llamar otra vez a
+                // session_start() emite un Notice, y ese output rompe el
+                // header("Location:") de abajo ("headers already sent"), asi que
+                // el login se quedaba en blanco en lugar de redirigir.
+                // Renovamos el id de sesion para evitar fijacion de sesion.
+                session_regenerate_id(true);
                 $_SESSION['userid'] = $userid;
                 header("Location: ../dashboard");
                 exit();

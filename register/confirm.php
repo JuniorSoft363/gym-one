@@ -1,12 +1,12 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['userid'])) {
-    header("Location: ../");
-    exit();
-}
-
-$userid = $_SESSION['userid'];
+// NO se exige sesion a proposito: a esta pagina se llega desde el enlace del
+// correo de bienvenida, y quien acaba de registrarse no puede tener sesion
+// abierta (login/index.php rechaza precisamente a los no confirmados). El
+// "if (!isset($_SESSION['userid'])) redirect" que habia aqui hacia que el enlace
+// devolviera a la portada sin confirmar nada: el flujo estaba roto de raiz.
+// La autorizacion la aporta el token de un solo uso de la URL, no la sesion.
 
 function read_env_file($file_path)
 {
@@ -107,14 +107,40 @@ if ($conn->connect_error) {
                 <h4 class="page-title"><?php echo $business_name;?> - <?php echo $translations["confirmemailpage"];?></h4>
 
                 <?php
-                if (isset($_GET['userid'])) {
+                if (isset($_GET['userid'], $_GET['token'])) {
                     $userid = $_GET['userid'];
+                    $token = (string) $_GET['token'];
 
-                    $sql = "UPDATE users SET confirmed = 'Yes' WHERE userid = ?";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("i", $userid);
+                    // Se busca el token guardado y se compara con hash_equals para
+                    // no filtrar informacion por el tiempo de comparacion.
+                    // El UPDATE exige que el token coincida Y que siga pendiente,
+                    // y lo pone a NULL: asi el enlace sirve una sola vez.
+                    $stmt = $conn->prepare(
+                        "UPDATE users
+                            SET confirmed = 'Yes', confirm_token = NULL
+                          WHERE userid = ? AND confirm_token IS NOT NULL AND confirm_token = ?"
+                    );
+                    $stmt->bind_param("is", $userid, $token);
+                    $stmt->execute();
+                    $confirmed_now = $stmt->affected_rows === 1;
+                    $stmt->close();
 
-                    if ($stmt->execute()) {
+                    // Si no se actualizo nada puede ser por token invalido o porque
+                    // la cuenta ya estaba confirmada; distinguimos los dos casos para
+                    // no alarmar a quien simplemente pincha el enlace dos veces.
+                    $already = false;
+                    if (!$confirmed_now) {
+                        $check = $conn->prepare("SELECT confirmed FROM users WHERE userid = ?");
+                        $check->bind_param("i", $userid);
+                        $check->execute();
+                        $check->bind_result($confirmed_state);
+                        if ($check->fetch() && $confirmed_state === 'Yes') {
+                            $already = true;
+                        }
+                        $check->close();
+                    }
+
+                    if ($confirmed_now || $already) {
                         echo '<div class="status-message alert-success" role="alert">';
                         echo '<div class="status-icon success-icon">';
                         echo '<i class="bi bi-check-circle-fill"></i>';
@@ -122,15 +148,15 @@ if ($conn->connect_error) {
                         echo '<h4 class="text-light mb-2">' . $translations["regconfirm"] . '</h4>';
                         echo '</div>';
                     } else {
+                        // Mensaje deliberadamente generico: no revelamos si el id
+                        // existe ni por que ha fallado.
                         echo '<div class="status-message alert-danger" role="alert">';
                         echo '<div class="status-icon error-icon">';
                         echo '<i class="bi bi-x-circle-fill"></i>';
                         echo '</div>';
-                        echo '<p class="text-light mb-0">' . $translations["errorconfirm"] . $conn->error . '</p>';
+                        echo '<p class="text-light mb-0">' . $translations["errorconfirm"] . '</p>';
                         echo '</div>';
                     }
-
-                    $stmt->close();
                 } else {
                     echo '<div class="status-message alert-warning" role="alert">';
                     echo '<div class="status-icon warning-icon">';

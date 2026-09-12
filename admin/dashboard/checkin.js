@@ -23,6 +23,13 @@
     // Profilképek: assets/img/profiles/<userid>.png — a dashboardról ../../assets/...
     const PROFILE_BASE = BASE + '../../assets/img/profiles/';
 
+    // A process.php és a search.php CSRF-tokent kér. Az index.php a
+    // window.csrfToken-be teszi; itt minden POST-hoz fejlécként csatoljuk.
+    const POST_HEADERS = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRF-Token': window.csrfToken || ''
+    };
+
     let scanCompleted = false;
     let scanning = false;
     let userData = {};
@@ -137,7 +144,7 @@
         try {
             const res = await fetch(ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: POST_HEADERS,
                 body: new URLSearchParams({ action: 'lookup', qrcode: userId }).toString()
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -236,7 +243,7 @@
                 searchAbort = new AbortController();
                 fetch(SEARCH_ENDPOINT, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: POST_HEADERS,
                     body: new URLSearchParams({ search: query }).toString(),
                     signal: searchAbort.signal
                 })
@@ -291,7 +298,7 @@
             try {
                 const res = await fetch(ENDPOINT, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    headers: POST_HEADERS,
                     body: new URLSearchParams({ action: 'commit', qrcode: userData.userid }).toString()
                 });
                 const d = await res.json();

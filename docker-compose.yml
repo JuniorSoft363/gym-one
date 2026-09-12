@@ -1,0 +1,67 @@
+services:
+  web:
+    build:
+      context: ./docker
+    container_name: gymone-web
+    ports:
+      - "8080:80"
+    volumes:
+      # El codigo se monta en vivo: editas en Windows y recargas el navegador.
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+      mail:
+        condition: service_started
+
+  # Captura el correo que manda el proyecto (confirmacion de registro, avisos de
+  # caducidad) en lugar de enviarlo de verdad. Bandeja en http://localhost:8025
+  mail:
+    image: axllent/mailpit:latest
+    container_name: gymone-mail
+    ports:
+      - "8025:8025"
+
+  db:
+    # El dump original se genero en MariaDB 10.4 (usa int(11), utf8mb4_hungarian_ci).
+    # 10.11 es la rama LTS y lo importa sin cambios.
+    image: mariadb:10.11
+    container_name: gymone-db
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: gymone
+      MARIADB_USER: gymone
+      MARIADB_PASSWORD: gymone
+    volumes:
+      - db_data:/var/lib/mysql
+      # Los ficheros de esta carpeta se ejecutan en orden alfabetico la PRIMERA
+      # vez que se crea el volumen:
+      #   01 -> esquema original del repo
+      #   02 -> tablas/columnas que el codigo usa pero faltan en el dump
+      #   03 -> datos de prueba (admin, taquillas, horarios, abonos, miembros)
+      - ./assets/SQL/Init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./docker/sql/02-missing-schema.sql:/docker-entrypoint-initdb.d/02-missing-schema.sql:ro
+      - ./docker/sql/03-seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: gymone-pma
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

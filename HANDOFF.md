@@ -182,15 +182,112 @@ barras) y recarga de saldo. Pago en efectivo, tarjeta o saldo interno
 - **`temp_cart` guarda `user_id = 0` fijo** → carrito global: dos empleados
   vendiendo a la vez mezclan los carritos. Un solo puesto de venta simultáneo.
 
-## 9. Pendientes, por impacto
+## 9. PENDIENTE — qué falta por hacer
 
-1. **Paginar `/admin/log/`** — el techo de escala.
-2. **Timeout o caché** en la comprobación de versión — el 87 % del tiempo.
-3. **Índices** en las columnas `userid` de las tablas hijas.
-4. Borrar restos muertos: `admin/trainers/timetable/index copy.php` y
-   `admin/shop/gateway/PAYPALCHECK.php` (demo con email hardcodeado).
-5. Swiftmailer está **abandonado desde 2021** → migrar a `symfony/mailer`.
-6. `temp_cart` por empleado, para permitir varios puestos de venta.
+Lista verificada sobre el código y la instancia en marcha. Marca las casillas al
+completarlas. Los grupos van por urgencia, no por dificultad.
+
+### A. Bloquean el uso en producción
+
+- [ ] **1. Paginar `/admin/log/`.** Es el techo real de escala.
+  `admin/log/index.php:82` trae **todo** el historial sin `LIMIT` y lo filtra en
+  JavaScript (el comentario del propio código lo dice: *"Fetch all logs for
+  JavaScript filtering"*). Medido: 55.000 registros → **11,3 MB de HTML** y 2 s;
+  inusable en móvil. Hay un patrón de paginación ya resuelto en
+  `admin/users/index.php` (~líneas 90-125) que se puede copiar.
+  *Verificar:* que la página pesa igual con 100 y con 50.000 logs.
+
+- [ ] **2. Timeout o caché en la comprobación de versión.** Cada página del panel
+  llama a `api.gymoneglobal.com/latest/version.txt` con `curl` **sin timeout**:
+  748 ms medidos, el **87 %** del tiempo de respuesta. Duplicado en unos 20
+  ficheros. Si ese servidor cae, el panel entero se arrastra. Existe ya una
+  función correcta en `admin/dashboard/index.php` (`http_get()` con timeout de
+  4 s) que se puede extraer y reutilizar; lo ideal es cachear el resultado unas
+  horas en fichero.
+  *Verificar:* bloquear el dominio en `/etc/hosts` del contenedor; el panel debe
+  seguir respondiendo rápido.
+
+- [ ] **3. Índices en las columnas `userid`.** Ninguna tabla hija los tiene:
+  `current_tickets`, `workout_stats`, `invoices`, `logs`. Y `temp_loggeduser` no
+  tiene **ningún** índice ni clave primaria, pese a consultarse en cada check-in,
+  cada check-out y cada visita a la portada. Hoy no duele porque las tablas son
+  pequeñas; con cientos de miles de filas, sí.
+
+- [ ] **4. `temp_cart` por empleado.** Guarda `user_id = 0` fijo, así que el
+  carrito es **global**: dos empleados vendiendo a la vez mezclan los productos.
+  Limita el sistema a **un único puesto de venta simultáneo**. El comentario en
+  `admin/boss/sell/ticket/cart_process.php` lo admite: la columna es `int(11)` y
+  el `userid` del socio es `bigint`, así que se optó por 0. La solución es
+  guardar el id del **empleado** (`$_SESSION['adminuser']`) y filtrar por él.
+
+### B. Funcionalidad a medio terminar
+
+- [ ] **5. La página pública de normativa (`rule/index.php`) es una sola línea:**
+  `<iframe src="../admin/boss/rule/rule.html">`. Sin cabecera, sin estilos, sin
+  navegación y sin `width`/`height`, así que se ve como un recuadro diminuto.
+  Además sirve al público un fichero que está **dentro de `/admin/`**, lo que
+  expone una ruta del panel. Debería ser una página normal que lea el HTML y lo
+  pinte dentro de la plantilla del sitio. Tampoco está enlazada desde ningún
+  menú público.
+
+- [ ] **6. `admin/showcase/index.php` está completamente vacío** (0 bytes) y no
+  se enlaza desde ninguna parte. El `.gitignore` menciona un `!!!SHOWCASE` que no
+  existe: es el resto de una función abandonada. Decidir si se implementa o se
+  borra la carpeta.
+
+- [ ] **7. La pasarela de pago está deshabilitada.** `admin/shop/gateway/` tiene
+  pantallas para crear y editar PayPal, pero el enlace está **comentado en el
+  menú de todas las páginas** (`<!-- <a ... href="../shop/gateway">`) y la tabla
+  `shop_gateway` está vacía. No hay cobro online: todo se cobra en el mostrador.
+  Decidir si se termina o se retira.
+
+- [ ] **8. Documentar la instalación del cron.** `crontab/send_reminders.php`
+  envía los avisos de caducidad, pero no hay ninguna instrucción de cómo
+  programarlo. Debe ejecutarse **una vez al día** (busca abonos que caducan
+  *mañana*). En Docker no está configurado: hoy no se envía ningún aviso.
+
+### C. Deuda técnica
+
+- [ ] **9. Swiftmailer está abandonado desde noviembre de 2021.** Migrar a
+  `symfony/mailer`. Afecta a `register/index.php`, `crontab/send_reminders.php` y
+  `admin/boss/smtp/index.php`.
+
+- [ ] **10. Unos 108 textos escritos a fuego en húngaro** que no pasan por el
+  fichero de idioma, así que aparecen en húngaro aunque `LANG_CODE` sea otro.
+  Ejemplo visible: `register/index.php:243` muestra *"Sikeres regisztráció!"*
+  tras un alta correcta. También los `die("Kapcsolódási hiba: ...")`.
+
+- [ ] **11. `read_env_file()` está duplicada con 4 variantes divergentes** en unos
+  50 ficheros. Las antiguas parten la línea por `=` sin límite y no saltan
+  comentarios. Unificar en un único include, como se hizo con `_csrf.php`.
+
+- [ ] **12. `vendor/` está commiteado** (116 MB, herencia del upstream).
+  Sacarlo a Composer aligeraría mucho el repositorio, **pero rompe el
+  auto-updater** de `admin/updater/`, que descarga y descomprime el zip del
+  repositorio completo. Requiere decidir antes si se mantiene ese updater.
+
+- [ ] **13. Los errores de base de datos se imprimen en pantalla**
+  (`die("Kapcsolódási hiba: " . $conn->connect_error)` y varios
+  `echo $stmt->error`). En producción hay que registrarlos, no mostrarlos.
+
+### D. Limpieza
+
+- [ ] **14. Borrar `admin/trainers/timetable/index copy.php`** — copia muerta.
+- [ ] **15. Borrar `admin/shop/gateway/PAYPALCHECK.php`** — demo con email
+  hardcodeado, URLs `yourwebsite.com` y un `item_name` malsonante. Ya figura en
+  el `.gitignore`, señal de que el propio autor no lo quería.
+- [ ] **16. Decidir sobre las credenciales de demo en ficheros públicos.**
+  `admin123`, `staff123` y `test1234` aparecen en `CLAUDE.md`, `HANDOFF.md`,
+  `docker/README.md` y `docker/sql/03-seed.sql`, y el repositorio es público.
+  No tienen valor fuera de una máquina local, pero conviene decidirlo.
+
+### Ya hecho, no repetir
+
+Entorno Docker reproducible · esquema completado y datos de prueba · endpoints
+sin autenticar cerrados · escalada de privilegios · inyección SQL en alta de
+empleados · CSRF en todo el panel · token de confirmación de registro ·
+`admin/dashboard_OLD/` eliminado · redirección del login arreglada.
+Detalle en §7 y el motivo de cada decisión en `docs/SESION-2026-09.md`.
 
 ## 10. Cómo levantarlo y cómo verificar
 

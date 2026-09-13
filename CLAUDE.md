@@ -108,13 +108,15 @@ endpoints sin autenticar, escalada de privilegios, inyección SQL en alta de
 empleados, CSRF, token de confirmación de registro, y `admin/dashboard_OLD/`
 eliminado. El detalle está en `docker/README.md`.
 
-Pendiente, por orden de impacto:
-1. Paginar `/admin/log/`.
-2. Timeout o caché en la comprobación de versión (`api.gymoneglobal.com`).
-3. Índices en las columnas `userid` de las tablas hijas.
-4. Restos muertos por borrar: `admin/trainers/timetable/index copy.php` y
-   `admin/shop/gateway/PAYPALCHECK.php`.
-5. Swiftmailer está abandonado desde 2021 (migrar a symfony/mailer).
+**La lista completa de pendientes esta en `HANDOFF.md` seccion 9**, con 16 tareas
+marcables, el fichero y la linea de cada una y como verificarlas. No mantengas
+una copia aqui: se desincronizan. Los cuatro que bloquean produccion:
+
+1. Paginar `/admin/log/` — 11,3 MB de HTML con 55.000 registros.
+2. Timeout o cache en la comprobacion de version — el 87 % del tiempo de respuesta.
+3. Indices en las columnas `userid` de las tablas hijas.
+4. `temp_cart` por empleado — hoy el carrito es global y solo admite un puesto
+   de venta simultaneo.
 
 ## Cómo trabajar aquí
 

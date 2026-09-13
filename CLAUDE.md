@@ -27,9 +27,13 @@ Flujo verificado en frio: se clono el repo en una carpeta limpia, se levanto
 con esos dos comandos y funciono (BD sembrada sola, ambos logins, check-in
 asignando taquilla, 33 paginas del panel sin errores).
 
-`HANDOFF.md` es la version autocontenida de este documento, para pegar en un
-asistente que NO puede leer el repositorio (ChatGPT, DeepSeek...). Si cambias
-algo estructural, actualiza los dos.
+Documentacion hermana:
+- `HANDOFF.md` — version autocontenida de este documento, para pegar en un
+  asistente que NO puede leer el repositorio (ChatGPT, DeepSeek...).
+- `docs/SESION-2026-09.md` — por que las cosas estan como estan: decisiones
+  tomadas y su motivo. **Leelo antes de revertir algo que parezca raro.**
+
+Si cambias algo estructural, actualiza CLAUDE.md y HANDOFF.md.
 
 ## Patrón que se repite en todo el código
 

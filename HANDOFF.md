@@ -8,6 +8,9 @@ pegarse entero en un chat. Si el asistente *sí* puede leer el repositorio
 Repositorio: https://github.com/JuniorSoft363/gym-one
 Fork de: https://github.com/mayerbalintdev/GYM-One (upstream en `V1.4.1`)
 
+Para el **porque** de las decisiones (y no revertirlas por error), ver
+`docs/SESION-2026-09.md`.
+
 > **Aviso para el asistente:** no puedes ejecutar este proyecto ni leer sus
 > ficheros. Todo lo que propongas son hipótesis sin verificar. Este documento
 > incluye mediciones reales: fíate de ellas antes que de tu intuición, y pide el
